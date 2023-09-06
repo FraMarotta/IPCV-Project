@@ -25,8 +25,8 @@ for path in files:
 
 for k,gray in enumerate(images): 
     print("img ", k)
-    if(k>4):
-        break  #break after the 1st img until now, poi si toglie sia k che sto if
+    """ if(k>0):
+        break  """ #break after the 1st img until now, poi si toglie sia k che sto if
     #show it
     """ plt.imshow(gray, cmap='gray')
     plt.show() """
@@ -77,13 +77,16 @@ for k,gray in enumerate(images):
             #holes task done (1.4)
             #(centroids_in[j], diameter) are the Holes information (center and diameter)
             diameter = 2 * math.sqrt(stats_in[j][4]/math.pi)
-            hole = (centroids_in[j], diameter)
-            holes.append(hole)  
+            one_hole = (centroids_in[j], diameter)
+            holes.append(one_hole)  
             #retval_in-2 = number of holes  (1.1)
         
         #now we have to compute the remaining things
         #-orientation (modulo pi)
         #-Length (L), Width (W), Width at the barycenter (WB)   ##from MER
+        moments = cv2.moments(object, True)
+        #print(moments) #we have to figure out how to use these numbers
+        """ from wiki theta = 0.5 * atan( (2*mu11) / (mu20-mu02) ) """
 
         #prova sul mer
         cntrs, _= cv2.findContours(object, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
