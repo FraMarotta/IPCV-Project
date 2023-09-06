@@ -9,6 +9,14 @@ def median_filter(image, n_iters, kernel_size):
     for i in range(n_iters):
         image = cv2.medianBlur(image, kernel_size)
     return image
+
+def draw_oriented_mer(image, mer):
+    v1, v2, v3, v4 = mer[0], mer[1], mer[2], mer[3]
+
+    cv2.line(image, (int(v1[0]), int(v1[1])), (int(v2[0]), int(v2[1])), (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.line(image, (int(v2[0]), int(v2[1])), (int(v3[0]), int(v3[1])), (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.line(image, (int(v3[0]), int(v3[1])), (int(v4[0]), int(v4[1])), (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.line(image, (int(v4[0]), int(v4[1])), (int(v1[0]), int(v1[1])), (255, 255, 255), 1, cv2.LINE_AA)
 #---------------------------------------------------------
 files = glob.glob("img/*.bmp")  #all the imgs paths
 images = []
@@ -89,7 +97,13 @@ for k,gray in enumerate(images):
         if angle_degrees < 0:
             angle_degrees += 180  
         #orientation angle obtained in angle_degrees(1.2)
-        print(box)
+        """ draw_oriented_mer(binarized_image, box)
+        cv2.imshow("prova",binarized_image)
+        cv2.moveWindow("prova", 0, 0)
+        cv2.waitKey()
+        cv2.destroyAllWindows() """
+        #print("width:", rect[1][0], "height:", rect[1][1])
+        print(stats)
         print('#')
 
             
