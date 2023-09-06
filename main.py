@@ -17,8 +17,8 @@ for path in files:
 
 for k,gray in enumerate(images): 
     print("img ", k)
-    """ if(k>0):
-        break  """ #break after the 1st img until now, poi si toglie sia k che sto if
+    if(k>4):
+        break  #break after the 1st img until now, poi si toglie sia k che sto if
     #show it
     """ plt.imshow(gray, cmap='gray')
     plt.show() """
@@ -69,28 +69,29 @@ for k,gray in enumerate(images):
             #holes task done (1.4)
             #(centroids_in[j], diameter) are the Holes information (center and diameter)
             diameter = 2 * math.sqrt(stats_in[j][4]/math.pi)
-            one_hole = (centroids_in[j], diameter)
-            holes.append(one_hole)  
+            hole = (centroids_in[j], diameter)
+            holes.append(hole)  
             #retval_in-2 = number of holes  (1.1)
         
         #now we have to compute the remaining things
         #-orientation (modulo pi)
         #-Length (L), Width (W), Width at the barycenter (WB)   ##from MER
-        moments = cv2.moments(object, True)
-        #print(moments) #we have to figure out how to use these numbers
-        """ from wiki theta = 0.5 * atan( (2*mu11) / (mu20-mu02) ) """
 
         #prova sul mer
         cntrs, _= cv2.findContours(object, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
         c = cntrs[-1]
         rect = cv2.minAreaRect(c)
         box = cv2.boxPoints(rect)  #mer da capire cosa contiene
-        angle = rect[2]
-        if(angle > 45):
-            angle = 180-angle
-        else:
-            angle = 90-angle
-        print(angle,"deg")
-        print('#')    
+        [vx,vy,x,y] = cv2.fitLine(c, cv2.DIST_L2,0,0.01,0.01)
+        
+        angle_rad = -math.atan2(vy, vx)
+        angle_degrees = math.degrees(angle_rad)
+        if angle_degrees < 0:
+            angle_degrees += 180  
+        #orientation angle obtained in angle_degrees(1.2)
+        print(box)
+        print('#')
+
+            
         
     
