@@ -38,9 +38,14 @@ def find_orientation(vx, vy):
 
 def print_info(holes, position, angle, length, width):
     if len(holes) == 1:
-        print("Type A")
+        print("Rod Type:    Type A")
     elif len(holes) == 2:
-        print("Type B")
+        print("Rod Type:    Type B")
+    print("Position:    Centroid=", position)
+    print("Orientation angle:   ", angle, "degrees")
+    print("Dimensions: Lenth=", length, "Width=", width)
+    
+
     
 #---------------------------------------------------------
 files = glob.glob("img/*.bmp")  #find all the images paths
