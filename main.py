@@ -50,10 +50,11 @@ for path in files:
 
 for k, gray in enumerate(images): 
     print("Image: ", files[k])
-    if(k>4):
+    if(k>14):
         break  #break after the 1st img until now, poi si toglie sia k che sto if
-    #show it
-    #show_image(gray, "Original Image")
+
+    
+    #show_image(gray, "Original Image")  #uncomment to show the image
 
     #remove impulsive noise (powder), we may need more than one pass of the filter -> function that does this
     gray = median_filter(gray, 3, 3)
@@ -61,14 +62,13 @@ for k, gray in enumerate(images):
     #binarize it by the OTSU's method
     th, binarized_image = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    #show binarized image
-    #show_image(binarized_image, "Binarized Image")
+    #show_image(binarized_image, "Binarized Image") #uncomment to show binarized image
 
     ##### TO DO erosion
 
     #label the binarized image with connected components to find rods (and other objects). Rule of neighbourhood=4
     retval, labels, stats, centroids = cv2.connectedComponentsWithStats(binarized_image, 4)
-    #iter on the found object, the first labeled component is the bg -> start from 1
+    #iter on the found objects, the first labeled component is the bg -> start from 1
 
     for i in range(1, retval):
         #crete an "object mask", a black (0) image with only one component in white (255)
@@ -96,25 +96,22 @@ for k, gray in enumerate(images):
             hole = (centroids_in[j], diameter)
             holes.append(hole)
         
-        #compute the remaining things
-        #-orientation (modulo pi)
-        #-Length (L), Width (W), Width at the barycenter (WB)
-
         #find Minimum Enclosing Rectangle (MER)
         cntrs, _= cv2.findContours(object, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
         c = cntrs[-1]
         rect = cv2.minAreaRect(c)
+        box = cv2.boxPoints(rect) #find the 4 vertices of the MER
 
+        #compute length as the extent of the object along th emajor axis, and width along the minor axis
         width, length = find_wl(rect[1][0], rect[1][1])
         elongatedness = length/width
+
         #if elongatedness < 2 (washer) we can skip to next object
         if elongatedness < 2:
             continue
 
-        box = cv2.boxPoints(rect) #find the 4 vertices of the MER
-        [vx,vy,x,y] = cv2.fitLine(c, cv2.DIST_L2,0,0.01,0.01)
-        
         #orientation angle (1.2)
+        [vx,vy,x,y] = cv2.fitLine(c, cv2.DIST_L2,0,0.01,0.01)
         angle_degrees = find_orientation(vx, vy)
         
         """ draw_oriented_mer(binarized_image, box)
