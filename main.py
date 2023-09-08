@@ -9,7 +9,7 @@ def median_filter(image, n_iters, kernel_size):
         image = cv2.medianBlur(image, kernel_size)
     return image
 
-def draw_oriented_mer(image, mer):
+def draw_mer(image, mer):
     v1, v2, v3, v4 = mer[0], mer[1], mer[2], mer[3]
 
     cv2.line(image, (int(v1[0]), int(v1[1])), (int(v2[0]), int(v2[1])), (255, 255, 255), 1, cv2.LINE_AA)
@@ -114,7 +114,7 @@ for k, gray in enumerate(images):
         [vx,vy,x,y] = cv2.fitLine(c, cv2.DIST_L2,0,0.01,0.01)
         angle_degrees = find_orientation(vx, vy)
         
-        """ draw_oriented_mer(binarized_image, box)
+        """ draw_mer(binarized_image, box)
         show_image(binarized_image, "MER") """
         print_info(holes, centroids[i], angle_degrees, length, width)
 
