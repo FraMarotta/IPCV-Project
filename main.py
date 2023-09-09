@@ -46,7 +46,16 @@ def print_info(holes, position, angle, length, width):
     print("Dimensions: Lenth=", length, "Width=", width)
     
 
-    
+def find_intersections(m_major,x,y, contour):
+    m_minor = -1/m_major
+    q_minor = y-m_minor*x
+    intersections = []
+    for i in range(len(contour)):
+        x = contour[i][0][0]
+        y = contour[i][0][1]
+        if abs(y - m_minor*x - q_minor) < 3:
+            intersections.append((x, y))
+    return intersections, q_minor 
 #---------------------------------------------------------
 files = glob.glob("img/*.bmp")  #find all the images paths
 images = []
@@ -55,7 +64,7 @@ for path in files:
 
 for k, gray in enumerate(images): 
     print("Image: ", files[k])
-    if(k>14):
+    if(k>20):
         break  #break after the 1st img until now, poi si toglie sia k che sto if
 
     
@@ -66,7 +75,7 @@ for k, gray in enumerate(images):
     
     #binarize it by the OTSU's method
     th, binarized_image = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
+    display = cv2.cvtColor(binarized_image.copy(), cv2.COLOR_GRAY2RGB)
     #show_image(binarized_image, "Binarized Image") #uncomment to show binarized image
 
     ##### TO DO erosion
@@ -102,7 +111,7 @@ for k, gray in enumerate(images):
             holes.append(hole)
         
         #find Minimum Enclosing Rectangle (MER)
-        cntrs, _= cv2.findContours(object, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+        cntrs, _= cv2.findContours(object, cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_NONE)
         c = cntrs[-1]
         rect = cv2.minAreaRect(c)
         box = cv2.boxPoints(rect) #find the 4 vertices of the MER
@@ -118,7 +127,13 @@ for k, gray in enumerate(images):
         #orientation angle (1.2)
         [vx,vy,x,y] = cv2.fitLine(c, cv2.DIST_L2,0,0.01,0.01)
         angle_degrees = find_orientation(vx, vy)
-        
+
+        #find the perpendicular line to the major axis of the MER that passes through the centroid of the object
+        intersections, q_minor = find_intersections(vy[0]/vx[0],centroids[i][0],centroids[i][1], c)
+        cv2.line(display, (int(0), int(q_minor)), (int(centroids[i][0]), int(centroids[i][1])), (0,255,0), 2)
+        cv2.drawContours(display, c, -1, (255, 0, 0), 2)
+        show_image(display)
+        print(intersections)
         """ draw_mer(binarized_image, box)
         show_image(binarized_image, "MER") """
         print_info(holes, centroids[i], angle_degrees, length, width)
