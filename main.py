@@ -50,10 +50,11 @@ def find_intersections(m_major,x,y, contour):
     m_minor = -1/m_major
     q_minor = y-m_minor*x
     intersections = []
+    print(m_minor, q_minor)
     for i in range(len(contour)):
         x = contour[i][0][0]
         y = contour[i][0][1]
-        if abs(y - m_minor*x - q_minor) < 3:
+        if abs(y - m_minor*x - q_minor) < 10:
             intersections.append((x, y))
     return intersections, q_minor 
 #---------------------------------------------------------
@@ -131,6 +132,8 @@ for k, gray in enumerate(images):
         #find the perpendicular line to the major axis of the MER that passes through the centroid of the object
         intersections, q_minor = find_intersections(vy[0]/vx[0],centroids[i][0],centroids[i][1], c)
         cv2.line(display, (int(0), int(q_minor)), (int(centroids[i][0]), int(centroids[i][1])), (0,255,0), 2)
+        cv2.circle(display, (intersections[0][0],intersections[0][1]), radius=3, color=(0, 0, 255), thickness=-1)
+        cv2.circle(display, (intersections[1][0],intersections[1][1]), radius=3, color=(0, 0, 255), thickness=-1)
         cv2.drawContours(display, c, -1, (255, 0, 0), 2)
         show_image(display)
         print(intersections)
