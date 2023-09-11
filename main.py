@@ -45,18 +45,48 @@ def print_info(holes, position, angle, length, width):
     print("Orientation angle:   ", angle, "degrees")
     print("Dimensions: Lenth=", length, "Width=", width)
     
+def find_perpendicular_vector(vx, vy):
+    return -vy, vx
 
-def find_intersections(m_major,x,y, contour):
-    m_minor = -1/m_major
-    q_minor = y-m_minor*x
+def find_line_from_point_and_vector(x, y, vx, vy):
+    m = vy[0]/vx[0]
+    q = y-m*x
+    return m, q
+
+def distance_between_points(x1, y1, x2, y2):
+    return math.sqrt((x2-x1)**2 + (y2-y1)**2)
+
+def distance_between_point_and_line(x, y, m, q):
+    return abs(m*x - y + q)/math.sqrt(m**2 + 1)
+
+def find_two_closest_points(intersections, x_bar, y_bar):
+    min_dist = 100000
+    min_dist2 = 100000
+    for i in range(len(intersections)):
+        dist = distance_between_points(x_bar, y_bar, intersections[i][0], intersections[i][1])
+        if dist < min_dist:
+            min_dist = dist
+            index = i
+    for i in range(len(intersections)):
+        dist = distance_between_points(x_bar, y_bar, intersections[i][0], intersections[i][1])
+        if dist < min_dist2 and i != index:
+            min_dist2 = dist
+            index2 = i
+    return intersections[index], intersections[index2]
+
+def find_intersections(vx_major, vy_major,x_bar,y_bar, contour):
+
+    vx_minor, vy_minor = find_perpendicular_vector(vx_major, vy_major)
+    m_minor, q_minor = find_line_from_point_and_vector(x_bar, y_bar, vx_minor, vy_minor)
     intersections = []
     print(m_minor, q_minor)
     for i in range(len(contour)):
         x = contour[i][0][0]
         y = contour[i][0][1]
-        if abs(y - m_minor*x - q_minor) < 10:
+        if distance_between_point_and_line(x,y, m_minor, q_minor) < 1:
             intersections.append((x, y))
-    return intersections, q_minor 
+    #a,b = find_two_closest_points(intersections, x_bar, y_bar)
+    return intersections, q_minor
 #---------------------------------------------------------
 files = glob.glob("img/*.bmp")  #find all the images paths
 images = []
@@ -130,16 +160,18 @@ for k, gray in enumerate(images):
         angle_degrees = find_orientation(vx, vy)
 
         #find the perpendicular line to the major axis of the MER that passes through the centroid of the object
-        intersections, q_minor = find_intersections(vy[0]/vx[0],centroids[i][0],centroids[i][1], c)
+        intersections, q_minor = find_intersections(vx, vy, centroids[i][0], centroids[i][1], c)
         cv2.line(display, (int(0), int(q_minor)), (int(centroids[i][0]), int(centroids[i][1])), (0,255,0), 2)
-        cv2.circle(display, (intersections[0][0],intersections[0][1]), radius=3, color=(0, 0, 255), thickness=-1)
-        cv2.circle(display, (intersections[1][0],intersections[1][1]), radius=3, color=(0, 0, 255), thickness=-1)
+        for i in range(len(intersections)):
+            cv2.circle(display, (intersections[i][0],intersections[i][1]), radius=3, color=(0, 0, 255), thickness=-1)
+        #cv2.circle(display, (intersections[0][0],intersections[0][1]), radius=3, color=(0, 0, 255), thickness=-1)
+        #cv2.circle(display, (intersections[1][0],intersections[1][1]), radius=3, color=(0, 0, 255), thickness=-1)
         cv2.drawContours(display, c, -1, (255, 0, 0), 2)
         show_image(display)
         print(intersections)
         """ draw_mer(binarized_image, box)
         show_image(binarized_image, "MER") """
-        print_info(holes, centroids[i], angle_degrees, length, width)
+        #print_info(holes, centroids[i], angle_degrees, length, width)
 
     print('----------------------------------')
 
