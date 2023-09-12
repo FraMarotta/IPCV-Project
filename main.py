@@ -69,9 +69,7 @@ def is_close(x1, y1, points, threshold):
             return False
     return True
 
-
 def find_intersections(vx_major, vy_major,x_bar,y_bar, contour):
-
     vx_minor, vy_minor = find_perpendicular_vector(vx_major, vy_major)
     m_minor, q_minor = find_line_from_point_and_vector(x_bar, y_bar, vx_minor, vy_minor)
     intersections = []
@@ -81,6 +79,34 @@ def find_intersections(vx_major, vy_major,x_bar,y_bar, contour):
         if distance_between_point_and_line(x,y, m_minor, q_minor) < 1 and is_close(x, y, intersections, 5):
             intersections.append((x, y))
     return intersections, q_minor
+
+def divide_connected_components(image, display):
+    # using watershed algorithm
+    # noise removal
+    kernel = np.ones((3,3),np.uint8)
+    opening = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations = 2)
+    # sure background area
+    sure_bg = cv2.dilate(opening, kernel, iterations = 3)
+    # Finding sure foreground area
+    dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
+    ret, sure_fg = cv2.threshold(dist_transform, 0.7*dist_transform.max(), 255, 0)
+    # Finding unknown region
+    sure_fg = np.uint8(sure_fg)
+    show_image(sure_fg, "Sure Foreground")
+    show_image(sure_bg, "Sure Background")
+    unknown = cv2.subtract(sure_bg, sure_fg)
+    # Marker labelling
+    ret, markers = cv2.connectedComponents(sure_fg)
+    # Add one to all labels so that sure background is not 0, but 1
+    markers = markers+1
+    # Now, mark the region of unknown with zero
+    markers[unknown==255] = 0
+    markers = cv2.watershed(display, markers)
+    display[markers == -1] = 0
+    show_image(display, "Watershed")
+    return display
+
+
 #---------------------------------------------------------
 files = glob.glob("img/*.bmp")  #find all the images paths
 images = []
@@ -104,6 +130,7 @@ for k, gray in enumerate(images):
     #show_image(binarized_image, "Binarized Image") #uncomment to show binarized image
 
     ##### TO DO erosion
+    divided = divide_connected_components(binarized_image, display)
 
     #label the binarized image with connected components to find rods (and other objects). Rule of neighbourhood=4
     retval, labels, stats, centroids = cv2.connectedComponentsWithStats(binarized_image, 4)
