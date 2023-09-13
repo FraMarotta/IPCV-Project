@@ -45,6 +45,7 @@ def print_info(holes, position, angle, length, width, distance):
     print("Orientation angle:   ", round(angle,2), "degrees")
     print("Dimensions: Lenth=", round(length,2), "Width=", round(width,2))
     print("Baricenter width:", round(distance,2))
+    #info holes missing
     print("\n\n")
     
 def find_perpendicular_vector(vx, vy):
@@ -80,45 +81,71 @@ def find_intersections(vx_major, vy_major,x_bar,y_bar, contour):
             intersections.append((x, y))
     return intersections, q_minor
 
-def divide_connected_components(image, display):
-    # using watershed algorithm
-    # noise removal
-    kernel = np.ones((3,3),np.uint8)
-    opening = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations = 2)
-    # sure background area
-    sure_bg = cv2.dilate(opening, kernel, iterations = 3)
-    # Finding sure foreground area
-    dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
-    ret, sure_fg = cv2.threshold(dist_transform, 0.7*dist_transform.max(), 255, 0)
-    # Finding unknown region
-    sure_fg = np.uint8(sure_fg)
-    show_image(sure_fg, "Sure Foreground")
-    show_image(sure_bg, "Sure Background")
-    unknown = cv2.subtract(sure_bg, sure_fg)
-    # Marker labelling
-    ret, markers = cv2.connectedComponents(sure_fg)
-    # Add one to all labels so that sure background is not 0, but 1
-    markers = markers+1
-    # Now, mark the region of unknown with zero
-    markers[unknown==255] = 0
-    markers = cv2.watershed(display, markers)
-    display[markers == -1] = 0
-    show_image(display, "Watershed")
-    return display
+def divide_touching_components(binary_image):
+    while True:
+
+        flag = True
+        contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+        # we iterate on the contours found, we check if the area of the contour is greater than 6000 (two rods touching)
+        for i, cnt in enumerate(contours):
+
+            if abs(cv2.contourArea(cnt, True)) > 6000:
+                flag = False
+                idx = i # we store the index of the contour that is touching another one
+                break
+
+        # no touching components found, we can exit the while loop
+        if flag:
+            break
+
+        # select the contour that is needed to be divided
+        contour = contours[idx]
+        # we approximate the contour with a polygon
+        hull = cv2.convexHull(contour, returnPoints=False)
+        # we find the defects of the contour
+        defects = cv2.convexityDefects(contour, hull)
+
+        # contour's channels are indexed by the index found with convexityDefects
+        far_list = []
+        for i in range(np.shape(defects)[0]):
+            _, _, f, d = defects[i, 0]
+            # far is the pair of coordinates identifying the point where a concavity occurs
+            far = tuple(contour[f][0])
+
+            far_list.append([far, d / 256.0])
+            print(d, d/256.0)
+
+        far_list = sorted(far_list, key=lambda x: x[1])
+
+        start_far = far_list[-1][0]
+        end_far = far_list[-2][0]
+        dist_far = math.sqrt((start_far[0] - end_far[0]) ** 2 + (start_far[1] - end_far[1]) ** 2)
+
+        # the distance between each of the two points belonging to the last four elements of the list are checked to
+        # be greater than 30, if the condition is fulfilled then we switch to another pair of points
+        if dist_far > 30:
+            end_far = far_list[-3][0]
+            dist_far = math.sqrt((start_far[0] - end_far[0]) ** 2 + (start_far[1] - end_far[1]) ** 2)
+            if dist_far > 30:
+                end_far = far_list[-4][0]
+
+        # A line is drawn in order to detach the rods
+        cv2.line(binarized_image, start_far, end_far, (0, 0, 0), 2)
+        show_image(binarized_image, "Approximated Contours")
 
 
 #---------------------------------------------------------
-files = glob.glob("img/*.bmp")  #find all the images paths
+files = glob.glob("img/TESI5*.bmp")  #find all the images paths
 images = []
 for path in files:
     images.append(cv2.imread(path, cv2.IMREAD_GRAYSCALE)) #read and store all the images
 
 for k, gray in enumerate(images): 
     print("Image: ", files[k])
-    if(k>20):
+    if(k>2):
         break  #break after the 1st img until now, poi si toglie sia k che sto if
 
-    
     #show_image(gray, "Original Image")  #uncomment to show the image
 
     #remove impulsive noise (powder), we may need more than one pass of the filter -> function that does this
@@ -130,7 +157,7 @@ for k, gray in enumerate(images):
     #show_image(binarized_image, "Binarized Image") #uncomment to show binarized image
 
     ##### TO DO erosion
-    divided = divide_connected_components(binarized_image, display)
+    divide_touching_components(binarized_image)
 
     #label the binarized image with connected components to find rods (and other objects). Rule of neighbourhood=4
     retval, labels, stats, centroids = cv2.connectedComponentsWithStats(binarized_image, 4)
