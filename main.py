@@ -127,8 +127,7 @@ def divide_touching_components(binary_image):
             far = contour[f][0]
             points_info.append([far, d]) #d is the distance between the farthest point and the convex hull
             
-        points_info = sorted(points_info, key=lambda x: x[1])
-        print(points_info[0])
+        points_info = sorted(points_info, key=lambda x: x[1]) 
         # we select the two points that are the farthest from the convex hull and compute their distance
         likely_points = [points_info[-1][0], points_info[-2][0]]
         distance = distance_between_points(likely_points[0][0], likely_points[0][1], likely_points[1][0], likely_points[1][1])
