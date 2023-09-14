@@ -221,7 +221,7 @@ for k, gray in enumerate(images):
         cv2.circle(display, (intersections[0][0],intersections[0][1]), radius=3, color=(255, 0, 0), thickness=-1)
         cv2.circle(display, (intersections[1][0],intersections[1][1]), radius=3, color=(255, 0, 0), thickness=-1)
         cv2.line(display, (int(intersections[0][0]), int(intersections[0][1])), (int(intersections[1][0]), int(intersections[1][1])), (0,0,255), 2)
-        show_image(display)
+        show_image(display, "Binarized Image")
 
         #compute the width at the baricenter
         distance = distance_between_points(intersections[0][0], intersections[0][1], intersections[1][0], intersections[1][1])
