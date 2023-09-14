@@ -1,34 +1,40 @@
+# Authors: Francesco Marotta, Simone Maravigna
+# Date: 2023-09
+# Project: Motorcycle Connecting Rods Inspection - Computer Vision and Image Processing Project Course
+# Description: The project aims to develop a system for the automatic inspection of motorcycle connecting rods.
+
+#---------------------------------------------------------
+#libraries
+#---------------------------------------------------------
 import cv2
 import numpy as np
 import math
 import glob
 
 #---------------------------------------------------------
+#helper functions
+#---------------------------------------------------------
+#median filter with n iterations and kernel size
 def median_filter(image, n_iters, kernel_size):
     for i in range(n_iters):
         image = cv2.medianBlur(image, kernel_size)
     return image
 
-def draw_mer(image, mer):
-    v1, v2, v3, v4 = mer[0], mer[1], mer[2], mer[3]
-
-    cv2.line(image, (int(v1[0]), int(v1[1])), (int(v2[0]), int(v2[1])), (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.line(image, (int(v2[0]), int(v2[1])), (int(v3[0]), int(v3[1])), (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.line(image, (int(v3[0]), int(v3[1])), (int(v4[0]), int(v4[1])), (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.line(image, (int(v4[0]), int(v4[1])), (int(v1[0]), int(v1[1])), (255, 255, 255), 1, cv2.LINE_AA)
-
+#show an image in a window
 def show_image(image, name="Image"):
     cv2.imshow(name, image)
+    cv2.moveWindow(name, 0, 0)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+#if width > length -> swap
 def find_wl(width, length):
-    #if width > length -> swap
     if width > length:
         return length, width
     else:
         return width, length
-    
+
+#find the orientation angle of the rod    
 def find_orientation(vx, vy):
     angle_rad = -math.atan2(vy[0], vx[0]) #angle between the x axis and the line that best fits the contour
     angle_degrees = math.degrees(angle_rad)
@@ -36,16 +42,17 @@ def find_orientation(vx, vy):
         angle_degrees += 180 
     return angle_degrees
 
+#print all the requested info of the rods
 def print_info(holes, position, angle, length, width, distance):
     if len(holes) == 1:
-        print("Rod Type:    Type A")
+        print("Rod Type: \tType A")
     elif len(holes) == 2:
-        print("Rod Type:    Type B")
-    print("Position:    Centroid=", round(position[0],2),"," ,round(position[1],2))
-    print("Orientation angle:   ", round(angle,2), "degrees")
-    print("Dimensions: Lenth=", round(length,2), "Width=", round(width,2))
-    print("Baricenter width:", round(distance,2))
-    #info holes missing
+        print("Rod Type: \tType B")
+    print("Position: \t", round(position[0],2),"," ,round(position[1],2))
+    print("Orientation angle: \t", round(angle,2), "degrees")
+    print("Dimensions: \tLenth=", round(length,2),";" ,"Width=", round(width,2),";" , "Baricenter width=", round(distance,2))
+    for hole in holes:
+        print("Hole: \t", round(hole[0][0],2),",", round(hole[0][1],2),";" ,"Diameter=", round(hole[1],2))
     print("\n\n")
     
 def find_perpendicular_vector(vx, vy):
@@ -62,7 +69,8 @@ def distance_between_points(x1, y1, x2, y2):
 def distance_between_point_and_line(x, y, m, q):
     return abs(m*x - y + q)/math.sqrt(m**2 + 1)
 
-def is_close(x1, y1, points, threshold):
+#check if a point is not too close to another one
+def is_not_close(x1, y1, points, threshold):
     for i in range(len(points)):
         x2 = points[i][0]
         y2 = points[i][1]
@@ -70,6 +78,7 @@ def is_close(x1, y1, points, threshold):
             return False
     return True
 
+#find the intersections between the minor axis and the contour, to find the width at the baricenter
 def find_intersections(vx_major, vy_major,x_bar,y_bar, contour):
     vx_minor, vy_minor = find_perpendicular_vector(vx_major, vy_major)
     m_minor, q_minor = find_line_from_point_and_vector(x_bar, y_bar, vx_minor, vy_minor)
@@ -77,9 +86,10 @@ def find_intersections(vx_major, vy_major,x_bar,y_bar, contour):
     for i in range(len(contour)):
         x = contour[i][0][0]
         y = contour[i][0][1]
-        if distance_between_point_and_line(x,y, m_minor, q_minor) < 1 and is_close(x, y, intersections, 5):
+        #if the distance between the point and the line is less than 1 pixel, we have an intersection
+        if distance_between_point_and_line(x,y, m_minor, q_minor) < 1 and is_not_close(x, y, intersections, 5):
             intersections.append((x, y))
-    return intersections, q_minor
+    return intersections
 
 def divide_touching_components(binary_image):
     while True:
@@ -107,61 +117,60 @@ def divide_touching_components(binary_image):
         defects = cv2.convexityDefects(contour, hull)
 
         # contour's channels are indexed by the index found with convexityDefects
-        far_list = []
-        for i in range(np.shape(defects)[0]):
-            _, _, f, d = defects[i, 0]
-            # far is the pair of coordinates identifying the point where a concavity occurs
-            far = tuple(contour[f][0])
+        points_info = []  # we store here the points of the contour that are defects and their distance from the convex hull
+  
+        for dft in defects:
+            #defects shape is (n, 1, 4), where n is the number of defects found
+            #defects are stored as [start_point, end_point, farthest_point, distance]
+            _, _, f, d = dft[0]
+            # far is the index of the farthest point in countour array 
+            far = contour[f][0]
+            points_info.append([far, d]) #d is the distance between the farthest point and the convex hull
+            
+        points_info = sorted(points_info, key=lambda x: x[1])
+        print(points_info[0])
+        # we select the two points that are the farthest from the convex hull and compute their distance
+        likely_points = [points_info[-1][0], points_info[-2][0]]
+        distance = distance_between_points(likely_points[0][0], likely_points[0][1], likely_points[1][0], likely_points[1][1])
 
-            far_list.append([far, d / 256.0])
-            print(d, d/256.0)
+        # if the distance is greater than 50, we select the third farthest point
+        if distance > 50:
+            likely_points[1] = points_info[-3][0]
+            distance = distance_between_points(likely_points[0][0], likely_points[0][1], likely_points[1][0], likely_points[1][1])
 
-        far_list = sorted(far_list, key=lambda x: x[1])
-
-        start_far = far_list[-1][0]
-        end_far = far_list[-2][0]
-        dist_far = math.sqrt((start_far[0] - end_far[0]) ** 2 + (start_far[1] - end_far[1]) ** 2)
-
-        # the distance between each of the two points belonging to the last four elements of the list are checked to
-        # be greater than 30, if the condition is fulfilled then we switch to another pair of points
-        if dist_far > 30:
-            end_far = far_list[-3][0]
-            dist_far = math.sqrt((start_far[0] - end_far[0]) ** 2 + (start_far[1] - end_far[1]) ** 2)
-            if dist_far > 30:
-                end_far = far_list[-4][0]
-
-        # A line is drawn in order to detach the rods
-        cv2.line(binarized_image, start_far, end_far, (0, 0, 0), 2)
-        show_image(binarized_image, "Approximated Contours")
-
+        # draw a line between the two points
+        cv2.line(binarized_image, likely_points[0], likely_points[1], (0, 0, 0), 2)
 
 #---------------------------------------------------------
-files = glob.glob("img/TESI5*.bmp")  #find all the images paths
+#main
+#---------------------------------------------------------
+files = glob.glob("img/*.bmp")  #find all the images paths
 images = []
 for path in files:
     images.append(cv2.imread(path, cv2.IMREAD_GRAYSCALE)) #read and store all the images
 
 for k, gray in enumerate(images): 
     print("Image: ", files[k])
-    if(k>2):
-        break  #break after the 1st img until now, poi si toglie sia k che sto if
+   
+    show_image(gray, "Original Image")  
 
-    #show_image(gray, "Original Image")  #uncomment to show the image
-
-    #remove impulsive noise (powder), we may need more than one pass of the filter -> function that does this
+    #remove impulsive noise (powder) with a median filter (3x3) and 3 iterations
     gray = median_filter(gray, 3, 3)
     
     #binarize it by the OTSU's method
-    th, binarized_image = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    display = cv2.cvtColor(binarized_image.copy(), cv2.COLOR_GRAY2RGB)
-    #show_image(binarized_image, "Binarized Image") #uncomment to show binarized image
-
-    ##### TO DO erosion
+    _ , binarized_image = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    #divide touching components
     divide_touching_components(binarized_image)
+
+    #rgb image copy to draw on it
+    display = cv2.cvtColor(binarized_image.copy(), cv2.COLOR_GRAY2RGB)
+    show_image(display, "Binarized Image") 
 
     #label the binarized image with connected components to find rods (and other objects). Rule of neighbourhood=4
     retval, labels, stats, centroids = cv2.connectedComponentsWithStats(binarized_image, 4)
-    #iter on the found objects, the first labeled component is the bg -> start from 1
+    
+    #iter on the found objects, the first labeled component is the background -> start from 1
 
     for i in range(1, retval):
         #crete an "object mask", a black (0) image with only one component in white (255)
@@ -181,7 +190,7 @@ for k, gray in enumerate(images):
         holes = [] #store here holes info (1.4)
 
         #iter on the holes
-        #the first thing is the component on which we are working, the second is the real bg -> start from 2
+        #the first thing is the component on which we are working, the second is the real background -> start from 2
         for j in range(2, retval_in):
             #holes (1.4)
             #(centroids_in[j], diameter) are the Holes information (center and diameter)
@@ -193,7 +202,6 @@ for k, gray in enumerate(images):
         cntrs, _= cv2.findContours(object, cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_NONE)
         c = cntrs[-1]
         rect = cv2.minAreaRect(c)
-        box = cv2.boxPoints(rect) #find the 4 vertices of the MER
 
         #compute length as the extent of the object along th emajor axis, and width along the minor axis
         width, length = find_wl(rect[1][0], rect[1][1])
@@ -208,21 +216,18 @@ for k, gray in enumerate(images):
         angle_degrees = find_orientation(vx, vy)
 
         #find the perpendicular line to the major axis of the MER that passes through the centroid of the object
-        intersections, q_minor = find_intersections(vx, vy, centroids[i][0], centroids[i][1], c)
+        intersections = find_intersections(vx, vy, centroids[i][0], centroids[i][1], c)
 
-        #cv2.line(display, (int(0), int(q_minor)), (int(centroids[i][0]), int(centroids[i][1])), (0,255,0), 2)
-        #cv2.circle(display, (intersections[0][0],intersections[0][1]), radius=3, color=(0, 0, 255), thickness=-1)
-        #cv2.circle(display, (intersections[1][0],intersections[1][1]), radius=3, color=(0, 0, 255), thickness=-1)
-        #cv2.drawContours(display, c, -1, (255, 0, 0), 2)
-        #cv2.line(display, (int(intersections[0][0]), int(intersections[0][1])), (int(intersections[1][0]), int(intersections[1][1])), (0,255,0), 2)
-        #show_image(display)
+        #draw width at baricenter
+        cv2.circle(display, (intersections[0][0],intersections[0][1]), radius=3, color=(255, 0, 0), thickness=-1)
+        cv2.circle(display, (intersections[1][0],intersections[1][1]), radius=3, color=(255, 0, 0), thickness=-1)
+        cv2.line(display, (int(intersections[0][0]), int(intersections[0][1])), (int(intersections[1][0]), int(intersections[1][1])), (0,0,255), 2)
+        show_image(display)
+
+        #compute the width at the baricenter
         distance = distance_between_points(intersections[0][0], intersections[0][1], intersections[1][0], intersections[1][1])
-        """ draw_mer(binarized_image, box)
-        show_image(binarized_image, "MER") """
+
+        #print all the requested info of the rods
         print_info(holes, centroids[i], angle_degrees, length, width, distance)
 
     print('----------------------------------')
-
-            
-        
-    
